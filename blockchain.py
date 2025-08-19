@@ -10,6 +10,13 @@ from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
 
 
+def sha_32(msg: bytes) -> int:
+    """SHA-32."""
+    h = hashlib.sha256(msg).digest()
+    h_int = int.from_bytes(h, "big")
+    return h_int >> (256 - 32)
+
+
 class Wallet:
     """Representa a carteira de um usuário, com seu par de chaves."""
     def __init__(self, p: int, q: int, e: int = 5):
@@ -28,7 +35,7 @@ class Wallet:
         self.public_key = (self.N, self.e)
         self.private_key = (self.N, self.d)
         self.address = (
-            f"addr_{hashlib.sha256(str(self.public_key).encode()).hexdigest()[:16]}"
+            f"addr_{sha_32(str(self.public_key).encode())}"
         )
 
     def sign_transaction(self, to_address: str, amount: float):
@@ -50,9 +57,7 @@ class Transaction:
         self.to_address = to_address
         self.amount = amount
         self.data = f"{from_address}{to_address}{amount}"
-        self.hash = int.from_bytes(
-            hashlib.sha256(self.data.encode()).digest(), 'big'
-        ) % wallet.N
+        self.hash = sha_32(self.data.encode()) % wallet.N
         self.signature = pow(self.hash, wallet.d, wallet.N)
         self.public_key = wallet.public_key
 
@@ -80,7 +85,7 @@ class Block:
             f"{self.index}{self.transactions}{self.timestamp}"
             f"{self.previous_hash}{self.nonce}"
         )
-        return hashlib.sha256(block_string.encode()).hexdigest()
+        return sha_32(block_string.encode())
 
 
 class Blockchain:
@@ -104,7 +109,7 @@ class Blockchain:
 
     def is_valid_proof(self, block_hash: str):
         """Verifica se o hash atende aos critérios de dificuldade."""
-        binary_hash = bin(int(block_hash, 16))[2:].zfill(256)
+        binary_hash = bin(block_hash)[2:].zfill(32)
         return binary_hash.startswith('0' * self.difficulty_bits)
 
     def add_transaction(self, transaction: Transaction):

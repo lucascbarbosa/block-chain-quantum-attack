@@ -2,8 +2,9 @@
 from blockchain import Blockchain, Wallet
 
 
-DIFFICULTY_BITS = 3
+DIFFICULTY_BITS = 8
 NONCE_BITS = 10
+SHA_BITS = 20
 print("--- 1. INICIANDO SIMULAÇÃO DA BLOCKCHAIN ---")
 # Cria blockchain
 blockchain = Blockchain(difficulty_bits=DIFFICULTY_BITS, nonce_bits=NONCE_BITS)
