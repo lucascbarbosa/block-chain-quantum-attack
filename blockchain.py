@@ -136,18 +136,13 @@ class Blockchain:
 
         return None, time.time() - start_time
 
-    def mine_quantically(
-        self,
-        winning_nonce: int,
-        simulation: bool = True,
-        shots: int = 1024
-    ):
+    def mine_quantically(self, simulation: bool = True, shots: int = 1024):
         """Simula a mineração de um bloco usando o Algoritmo de Grover."""
         start_time = time.time()
 
         # Configura o algoritmo de Grover
-        grover_alg = GroverAlgorithm(self.nonce_bits)
-        grover_circuit = grover_alg.build_circuit(winning_nonce)
+        grover_alg = GroverAlgorithm(self.nonce_bits, self.difficulty_bits)
+        grover_circuit = grover_alg.build_circuit()
 
         # Executa o algoritmo
         if simulation:
@@ -176,5 +171,6 @@ class Blockchain:
             measured_nonce_str = max(counts, key=counts.get)
             span = result.metadata['execution']['execution_spans'][0]
             run_time = (span.stop - span.start).total_seconds()
-        measured_nonce = int(measured_nonce_str, 2)
+
+        measured_nonce = int(measured_nonce_str.replace(" ", ""), 2)
         return measured_nonce, run_time
