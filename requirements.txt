@@ -1,4 +1,4 @@
-matplotliba
+matplotlib
 numpy
 qiskit
 qiskit-aer

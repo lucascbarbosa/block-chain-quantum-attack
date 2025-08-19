@@ -2,14 +2,17 @@
 from math import floor, pi, sqrt
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import DiagonalGate
+from sha import SHA
 
 
 class GroverAlgorithm:
     """Classe com o algoritmo de Grover para achar a hash PoW do bloco."""
-    def __init__(self, nonce_bits: int, difficulty_bits: int):
+    def __init__(self, block, nonce_bits: int, difficulty_bits: int, sha: SHA):
         """Inicializa parâmetros."""
         self.nonce_bits = nonce_bits
         self.difficulty_bits = difficulty_bits
+        self.block = block
+        self.sha = sha
 
     def oracle(self):
         """Cria o oráculo que marca os estados vencedores.
@@ -18,14 +21,16 @@ class GroverAlgorithm:
         cujos primeiros difficulty_bits bits são zero.
 
         """
-        diagonal = [1] * (2**self.nonce_bits)
-        # Marca os estados que possuem os primeiros bits de dificuldade zerados
-        for i in range(2**self.nonce_bits):
-            if i >> (self.nonce_bits - self.difficulty_bits) == 0:
-                diagonal[i] = -1
-        oracle_gate = DiagonalGate(diagonal)
-        oracle_gate.name = "Oráculo"
-        return oracle_gate
+        diagonal = [1] * 2 ** self.nonce_bits
+        for nonce in range(2 ** self.nonce_bits):
+            self.block.nonce = nonce
+            hash_attempt = self.block.compute_hash()
+            if self.sha.validate(hash_attempt, self.difficulty_bits):
+                diagonal[nonce] = -1
+                break
+        oracle = DiagonalGate(diagonal)
+        oracle.name = "Oráculo"
+        return oracle
 
     def diffuser(self):
         """Cria o difusor (inversão sobre a média)."""

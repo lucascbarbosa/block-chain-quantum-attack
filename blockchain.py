@@ -1,8 +1,8 @@
 """Blockchain module."""
-import hashlib
 import time
 from grover import GroverAlgorithm
 from math import gcd
+from sha import SHA
 from sympy import mod_inverse
 from qiskit import transpile
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
@@ -10,16 +10,9 @@ from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
 
 
-def sha_32(msg: bytes) -> int:
-    """SHA-32."""
-    h = hashlib.sha256(msg).digest()
-    h_int = int.from_bytes(h, "big")
-    return h_int >> (256 - 32)
-
-
 class Wallet:
     """Representa a carteira de um usuário, com seu par de chaves."""
-    def __init__(self, p: int, q: int, e: int = 5):
+    def __init__(self, p: int, q: int, sha: SHA, e: int = 5):
         """Inicializa parâmetros."""
         self.p = p
         self.q = q
@@ -34,13 +27,14 @@ class Wallet:
         self.d = mod_inverse(self.e, phi_N)
         self.public_key = (self.N, self.e)
         self.private_key = (self.N, self.d)
+        self.sha = sha
         self.address = (
-            f"addr_{sha_32(str(self.public_key).encode())}"
+            f"addr_{self.sha.encode(str(self.public_key).encode())}"
         )
 
     def sign_transaction(self, to_address: str, amount: float):
         """Cria e assina uma transação com a chave privada."""
-        return Transaction(self.address, to_address, amount, self)
+        return Transaction(self.address, to_address, amount, self, self.sha)
 
 
 class Transaction:
@@ -51,13 +45,14 @@ class Transaction:
         to_address: str,
         amount: float,
         wallet: Wallet,
+        sha: SHA,
     ):
         """Inicializa parâmetros."""
         self.from_address = from_address
         self.to_address = to_address
         self.amount = amount
         self.data = f"{from_address}{to_address}{amount}"
-        self.hash = sha_32(self.data.encode()) % wallet.N
+        self.hash = sha.encode(self.data.encode()) % wallet.N
         self.signature = pow(self.hash, wallet.d, wallet.N)
         self.public_key = wallet.public_key
 
@@ -70,7 +65,8 @@ class Block:
         transactions: list[Transaction],
         timestamp: time.time,
         previous_hash: str,
-        nonce: int = 0
+        sha: SHA,
+        nonce: int = 0,
     ):
         """Inicializa parâmetros."""
         self.index = index
@@ -78,27 +74,36 @@ class Block:
         self.timestamp = timestamp
         self.previous_hash = previous_hash
         self.nonce = nonce
+        self.sha = sha
 
     def compute_hash(self):
         """Calcula o hash do bloco, que serve como sua identidade única."""
         block_string = (
             f"{self.index}{self.transactions}{self.timestamp}"
             f"{self.previous_hash}{self.nonce}"
-        )
-        return sha_32(block_string.encode())
+        ).encode()
+        return self.sha.encode(block_string)
 
 
 class Blockchain:
     """Classe da blockchain."""
-    def __init__(self, difficulty_bits: int = 16, nonce_bits: int = 16):
+    def __init__(
+        self,
+        sha: SHA,
+        difficulty_bits: int = 16,
+        nonce_bits: int = 16,
+    ):
         """Inicializa parâmetros."""
         self.difficulty_bits = difficulty_bits
         self.nonce_bits = nonce_bits
         self.chain = []
         self.pending_transactions = []
 
+        # Create sha object
+        self.sha = sha
+
         # Create initial block
-        genesis_block = Block(0, [], time.time(), "0")
+        genesis_block = Block(0, [], time.time(), "0", sha=self.sha)
         genesis_block.hash = genesis_block.compute_hash()
         self.chain.append(genesis_block)
 
@@ -107,41 +112,58 @@ class Blockchain:
         """Retorna o último bloco."""
         return self.chain[-1]
 
-    def is_valid_proof(self, block_hash: str):
-        """Verifica se o hash atende aos critérios de dificuldade."""
-        binary_hash = bin(block_hash)[2:].zfill(32)
-        return binary_hash.startswith('0' * self.difficulty_bits)
-
     def add_transaction(self, transaction: Transaction):
         """Adiciona uma nova transação à lista de pendentes."""
         self.pending_transactions.append(transaction)
 
-    def mine_classically(self):
+    def classic_mining(self):
         """Minera um bloco usando força bruta clássica."""
         start_time = time.time()
         block = Block(
             self.last_block.index + 1,
             self.pending_transactions,
             time.time(),
-            self.last_block.hash
+            self.last_block.hash,
+            sha=self.sha,
         )
 
         # Prova de Trabalho por força bruta
         for nonce in range(2**self.nonce_bits):
             block.nonce = nonce
             hash_attempt = block.compute_hash()
-            if self.is_valid_proof(hash_attempt):
+            decoded_hash = self.sha.decode(hash_attempt)
+            print(f"NONCE={block.nonce}, HASH={hash_attempt}, DECODED_HASH={decoded_hash}")
+            if self.sha.validate(hash_attempt, self.difficulty_bits):
                 end_time = time.time()
-                return nonce, end_time - start_time
+                return (
+                    nonce,
+                    hash_attempt,
+                    decoded_hash,
+                    end_time - start_time
+                )
 
-        return None, time.time() - start_time
+        return None, None, None, time.time() - start_time
 
-    def mine_quantically(self, simulation: bool = True, shots: int = 1024):
+    def quantum_mining(self, simulation: bool = True, shots: int = 1024):
         """Simula a mineração de um bloco usando o Algoritmo de Grover."""
         start_time = time.time()
 
+        # Cria bloco
+        block = Block(
+            self.last_block.index + 1,
+            self.pending_transactions,
+            time.time(),
+            self.last_block.hash,
+            sha=self.sha,
+        )
+
         # Configura o algoritmo de Grover
-        grover_alg = GroverAlgorithm(self.nonce_bits, self.difficulty_bits)
+        grover_alg = GroverAlgorithm(
+            block,
+            self.nonce_bits,
+            self.difficulty_bits,
+            self.sha
+        )
         grover_circuit = grover_alg.build_circuit()
 
         # Executa o algoritmo
@@ -152,7 +174,7 @@ class Blockchain:
             # Extrai resultado
             result = simulator.run(
                 grover_circuit, shots=shots, memory=True).result()
-            measured_nonce_str = result.get_memory()[0]
+            counts = result.get_counts()
             run_time = time.time() - start_time
 
         else:
@@ -168,9 +190,12 @@ class Blockchain:
             job = sampler.run([grover_circuit], shots=shots)
             result = job.result()
             counts = result[0].data.meas.get_counts()
-            measured_nonce_str = max(counts, key=counts.get)
             span = result.metadata['execution']['execution_spans'][0]
             run_time = (span.stop - span.start).total_seconds()
 
-        measured_nonce = int(measured_nonce_str.replace(" ", ""), 2)
-        return measured_nonce, run_time
+        measured_nonce_str = max(counts, key=counts.get).split(" ")[0]
+        measured_nonce = int(measured_nonce_str, 2)
+        block.nonce = measured_nonce
+        block_hash = block.compute_hash()
+        decoded_hash = self.sha.decode(block.compute_hash())
+        return measured_nonce, block_hash, decoded_hash, run_time
