@@ -132,7 +132,6 @@ class Blockchain:
             block.nonce = nonce
             hash_attempt = block.compute_hash()
             decoded_hash = self.sha.decode(hash_attempt)
-            print(f"NONCE={block.nonce}, HASH={hash_attempt}, DECODED_HASH={decoded_hash}")
             if self.sha.validate(hash_attempt, self.difficulty_bits):
                 end_time = time.time()
                 return (
@@ -146,8 +145,6 @@ class Blockchain:
 
     def quantum_mining(self, simulation: bool = True, shots: int = 1024):
         """Simula a mineração de um bloco usando o Algoritmo de Grover."""
-        start_time = time.time()
-
         # Cria bloco
         block = Block(
             self.last_block.index + 1,
@@ -168,6 +165,7 @@ class Blockchain:
 
         # Executa o algoritmo
         if simulation:
+            start_time = time.time()
             simulator = AerSimulator()
             grover_circuit = transpile(grover_circuit, simulator)
 

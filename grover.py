@@ -48,8 +48,7 @@ class GroverAlgorithm:
     def build_circuit(self):
         """Monta o circuito de Grover para o valor alvo."""
         N = 2**self.nonce_bits  # Número total de elementos
-        M = 1                 # Número de soluções (apenas uma)
-        iterations = floor(pi / 4 * sqrt(N / M))
+        iterations = floor(pi / 4 * sqrt(N))
 
         grover = QuantumCircuit(self.nonce_bits, self.nonce_bits)
         grover.h(range(self.nonce_bits))

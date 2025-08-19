@@ -1,26 +1,58 @@
 """Main script."""
+import argparse
 from blockchain import Blockchain, Wallet
 from sha import SHA
 
+parser = argparse.ArgumentParser(
+    description="Simulação de Blockchain com mineração clássica e quântica."
+)
+parser.add_argument(
+    "--difficulty-bits",
+    type=int,
+    default=8,
+    help="Número de bits de dificuldade para mineração."
+)
+parser.add_argument(
+    "--nonce-bits",
+    type=int,
+    default=10,
+    help="Número de bits do nonce."
+)
+parser.add_argument(
+    "--sha-bits",
+    type=int,
+    default=10,
+    help="Número de bits do SHA."
+)
+parser.add_argument(
+    "--simulation",
+    action="store_true",
+    default=True,
+    help="Simular mineração quântica (padrão: True)."
+)
+parser.add_argument(
+    "--no-simulation",
+    action="store_false",
+    dest="simulation",
+    help="Desabilitar simulação de mineração quântica."
+)
 
-DIFFICULTY_BITS = 3
-NONCE_BITS = 5
-SHA_BITS = 8
-SIMULATION = True
+args = parser.parse_args()
+
 print("--- 1. INICIANDO SIMULAÇÃO DA BLOCKCHAIN ---")
 print(
-    f"DIFFICULTY_BITS={DIFFICULTY_BITS}, "
-    f"NONCE_BITS={NONCE_BITS}, "
-    f"SHA_BITS={SHA_BITS}, "
-    f"SIMULATION={SIMULATION}"
+    f"DIFFICULTY_BITS={args.difficulty_bits}, "
+    f"NONCE_BITS={args.nonce_bits}, "
+    f"SHA_BITS={args.sha_bits}, "
+    f"SIMULATION={args.simulation}"
 )
 # Cria SHA
-sha = SHA(n=SHA_BITS)
+sha = SHA(n=args.sha_bits)
 
 # Cria blockchain
 blockchain = Blockchain(
-    difficulty_bits=DIFFICULTY_BITS,
-    nonce_bits=NONCE_BITS,
+    difficulty_bits=args.difficulty_bits,
+    nonce_bits=args.nonce_bits,
     sha=sha
 )
 
@@ -60,7 +92,7 @@ print("\n--- 4. TENTANDO MINERAR COM MÉTODO QUÂNTICO ---")
     quantum_hash,
     quantum_decoded_hash,
     quantum_time
-) = blockchain.quantum_mining()
+) = blockchain.quantum_mining(simulation=args.simulation)
 if quantum_nonce is None:
     print("Mineração quântica falhou em encontrar um nonce.")
 else:
