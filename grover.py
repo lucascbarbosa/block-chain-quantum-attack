@@ -21,16 +21,24 @@ class GroverAlgorithm:
         cujos primeiros difficulty_bits bits são zero.
 
         """
-        diagonal = [1] * 2 ** self.nonce_bits
+        self.marked_states = []
         for nonce in range(2 ** self.nonce_bits):
             self.block.nonce = nonce
             hash_attempt = self.block.compute_hash()
             if self.sha.validate(hash_attempt, self.difficulty_bits):
-                diagonal[nonce] = -1
-                break
-        oracle = DiagonalGate(diagonal)
+                self.marked_states.append(
+                    format(nonce, f'0{self.nonce_bits}b')
+                )
+
+        diagonal = [1] * 2 ** self.nonce_bits
+        for state in self.marked_states:
+            idx = int(state, 2)
+            diagonal[idx] = -1  # aplica fase -1 nos válidos
+
+        oracle = QuantumCircuit(self.nonce_bits)
+        oracle.append(DiagonalGate(diagonal), range(self.nonce_bits))
         oracle.name = "Oráculo"
-        return oracle
+        return oracle.to_gate()
 
     def diffuser(self):
         """Cria o difusor (inversão sobre a média)."""
@@ -47,15 +55,16 @@ class GroverAlgorithm:
 
     def build_circuit(self):
         """Monta o circuito de Grover para o valor alvo."""
-        N = 2**self.nonce_bits  # Número total de elementos
-        iterations = floor(pi / 4 * sqrt(N))
-
         grover = QuantumCircuit(self.nonce_bits, self.nonce_bits)
         grover.h(range(self.nonce_bits))
 
         oracle_gate = self.oracle()
         diffuser_gate = self.diffuser()
 
+        N = 2**self.nonce_bits  # Número total de elementos
+        M = len(self.marked_states)
+        iterations = floor(pi / 4 * sqrt(N / M))
+        print(iterations)
         for _ in range(iterations):
             grover.append(oracle_gate, range(self.nonce_bits))
             grover.append(diffuser_gate, range(self.nonce_bits))

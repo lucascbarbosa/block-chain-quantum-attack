@@ -25,6 +25,12 @@ parser.add_argument(
     help="Número de bits do SHA."
 )
 parser.add_argument(
+    "--shots",
+    type=int,
+    default=1024,
+    help="Número de execuções (shots) para a simulação quântica."
+)
+parser.add_argument(
     "--simulation",
     action="store_true",
     default=True,
@@ -92,7 +98,7 @@ print("\n--- 4. TENTANDO MINERAR COM MÉTODO QUÂNTICO ---")
     quantum_hash,
     quantum_decoded_hash,
     quantum_time
-) = blockchain.quantum_mining(simulation=args.simulation)
+) = blockchain.quantum_mining(simulation=args.simulation, shots=args.shots)
 if quantum_nonce is None:
     print("Mineração quântica falhou em encontrar um nonce.")
 else:

@@ -191,6 +191,7 @@ class Blockchain:
             span = result.metadata['execution']['execution_spans'][0]
             run_time = (span.stop - span.start).total_seconds()
 
+        print(counts)
         measured_nonce_str = max(counts, key=counts.get).split(" ")[0]
         measured_nonce = int(measured_nonce_str, 2)
         block.nonce = measured_nonce
