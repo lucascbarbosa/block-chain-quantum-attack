@@ -24,11 +24,12 @@ class GroverAlgorithm:
         self.marked_states = []
         for nonce in range(2 ** self.nonce_bits):
             self.block.nonce = nonce
+            nonce_binary = format(nonce, f'0{self.nonce_bits}b')
             hash_attempt = self.block.compute_hash()
+            decoded_hash = self.sha.decode(hash_attempt)
+            print(nonce_binary, decoded_hash)
             if self.sha.validate(hash_attempt, self.difficulty_bits):
-                self.marked_states.append(
-                    format(nonce, f'0{self.nonce_bits}b')
-                )
+                self.marked_states.append(nonce_binary)
 
         diagonal = [1] * 2 ** self.nonce_bits
         for state in self.marked_states:
@@ -61,10 +62,11 @@ class GroverAlgorithm:
         oracle_gate = self.oracle()
         diffuser_gate = self.diffuser()
 
-        N = 2**self.nonce_bits  # Número total de elementos
+        N = 2 ** self.nonce_bits  # Número total de elementos
         M = len(self.marked_states)
         iterations = floor(pi / 4 * sqrt(N / M))
-        print(iterations)
+        print(f"Estados marcados: {self.marked_states}")
+        print(f"Iterações: {iterations}")
         for _ in range(iterations):
             grover.append(oracle_gate, range(self.nonce_bits))
             grover.append(diffuser_gate, range(self.nonce_bits))

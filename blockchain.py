@@ -180,7 +180,7 @@ class Blockchain:
             service = QiskitRuntimeService()
             backend = service.least_busy(operational=True, simulator=False)
             pm = generate_preset_pass_manager(
-                backend=backend, optimization_level=1)
+                backend=backend, optimization_level=3)
             grover_circuit = pm.run(grover_circuit)
             sampler = Sampler(backend)
 
@@ -192,7 +192,11 @@ class Blockchain:
             run_time = (span.stop - span.start).total_seconds()
 
         print(counts)
-        measured_nonce_str = max(counts, key=counts.get).split(" ")[0]
+        # Corrige a extração do nonce para ambos os casos
+        if simulation:
+            measured_nonce_str = max(counts, key=counts.get).split(" ")[0]
+        else:
+            measured_nonce_str = max(counts, key=counts.get)
         measured_nonce = int(measured_nonce_str, 2)
         block.nonce = measured_nonce
         block_hash = block.compute_hash()
