@@ -187,16 +187,11 @@ class Blockchain:
             # Extrai resultado
             job = sampler.run([grover_circuit], shots=shots)
             result = job.result()
-            counts = result[0].data.meas.get_counts()
+            counts = result[0].data.c.get_counts()
             span = result.metadata['execution']['execution_spans'][0]
             run_time = (span.stop - span.start).total_seconds()
 
-        print(counts)
-        # Corrige a extração do nonce para ambos os casos
-        if simulation:
-            measured_nonce_str = max(counts, key=counts.get).split(" ")[0]
-        else:
-            measured_nonce_str = max(counts, key=counts.get)
+        measured_nonce_str = max(counts, key=counts.get)
         measured_nonce = int(measured_nonce_str, 2)
         block.nonce = measured_nonce
         block_hash = block.compute_hash()

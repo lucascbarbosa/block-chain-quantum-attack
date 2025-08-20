@@ -13,6 +13,15 @@ class GroverAlgorithm:
         self.difficulty_bits = difficulty_bits
         self.block = block
         self.sha = sha
+        self.marked_state = None
+
+    def _find_first_valid_nonce(self):
+        for nonce in range(2 ** self.nonce_bits):
+            self.block.nonce = nonce
+            hash_attempt = self.block.compute_hash()
+            if self.sha.validate(hash_attempt, self.difficulty_bits):
+                return format(nonce, f'0{self.nonce_bits}b')
+        return None
 
     def oracle(self):
         """Cria o oráculo que marca os estados vencedores.
@@ -21,25 +30,30 @@ class GroverAlgorithm:
         cujos primeiros difficulty_bits bits são zero.
 
         """
-        self.marked_states = []
-        for nonce in range(2 ** self.nonce_bits):
-            self.block.nonce = nonce
-            nonce_binary = format(nonce, f'0{self.nonce_bits}b')
-            hash_attempt = self.block.compute_hash()
-            decoded_hash = self.sha.decode(hash_attempt)
-            print(nonce_binary, decoded_hash)
-            if self.sha.validate(hash_attempt, self.difficulty_bits):
-                self.marked_states.append(nonce_binary)
+        if self.marked_state is None:
+            self.marked_state = self._find_first_valid_nonce()
+        if self.marked_state is None:
+            raise ValueError("Nenhum estado válido encontrado para o oráculo.")
 
-        diagonal = [1] * 2 ** self.nonce_bits
-        for state in self.marked_states:
-            idx = int(state, 2)
-            diagonal[idx] = -1  # aplica fase -1 nos válidos
+        qc = QuantumCircuit(self.nonce_bits)
 
-        oracle = QuantumCircuit(self.nonce_bits)
-        oracle.append(DiagonalGate(diagonal), range(self.nonce_bits))
-        oracle.name = "Oráculo"
-        return oracle.to_gate()
+        # X nos bits que são 0 no estado alvo
+        for i, b in enumerate(self.marked_state):
+            if b == '0':
+                qc.x(i)
+
+        # MCZ no último qubit
+        qc.h(self.nonce_bits - 1)
+        qc.mcx(list(range(self.nonce_bits - 1)), self.nonce_bits - 1)
+        qc.h(self.nonce_bits - 1)
+
+        # Desfaz X
+        for i, b in enumerate(self.marked_state):
+            if b == '0':
+                qc.x(i)
+
+        qc.name = "Oráculo"
+        return qc.to_gate()
 
     def diffuser(self):
         """Cria o difusor (inversão sobre a média)."""
@@ -63,12 +77,15 @@ class GroverAlgorithm:
         diffuser_gate = self.diffuser()
 
         N = 2 ** self.nonce_bits  # Número total de elementos
-        M = len(self.marked_states)
-        iterations = floor(pi / 4 * sqrt(N / M))
-        print(f"Estados marcados: {self.marked_states}")
-        print(f"Iterações: {iterations}")
+        iterations = floor(pi / 4 * sqrt(N))
+
+        # Iterações
         for _ in range(iterations):
             grover.append(oracle_gate, range(self.nonce_bits))
             grover.append(diffuser_gate, range(self.nonce_bits))
-        grover.measure_all()
+
+        # Medidores
+        for i in range(self.nonce_bits):
+            grover.measure(i, self.nonce_bits - 1 - i)
+
         return grover
