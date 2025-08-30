@@ -1,13 +1,13 @@
 """Blockchain module."""
 import time
-from grover import GroverAlgorithm
+from .grover import GroverAlgorithm
 from math import gcd
-from sha import SHA
-from sympy import mod_inverse
 from qiskit import transpile
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+from .sha import SHA
+from sympy import mod_inverse
 
 
 class Wallet:
@@ -118,7 +118,6 @@ class Blockchain:
 
     def classic_mining(self):
         """Minera um bloco usando força bruta clássica."""
-        start_time = time.time()
         block = Block(
             self.last_block.index + 1,
             self.pending_transactions,
@@ -133,15 +132,13 @@ class Blockchain:
             hash_attempt = block.compute_hash()
             decoded_hash = self.sha.decode(hash_attempt)
             if self.sha.validate(hash_attempt, self.difficulty_bits):
-                end_time = time.time()
                 return (
                     nonce,
                     hash_attempt,
                     decoded_hash,
-                    end_time - start_time
                 )
 
-        return None, None, None, time.time() - start_time
+        return None, None, None
 
     def quantum_mining(self, simulation: bool = True, shots: int = 1024):
         """Simula a mineração de um bloco usando o Algoritmo de Grover."""
@@ -165,7 +162,6 @@ class Blockchain:
 
         # Executa o algoritmo
         if simulation:
-            start_time = time.time()
             simulator = AerSimulator()
             grover_circuit = transpile(grover_circuit, simulator)
 
@@ -173,7 +169,6 @@ class Blockchain:
             result = simulator.run(
                 grover_circuit, shots=shots, memory=True).result()
             counts = result.get_counts()
-            run_time = time.time() - start_time
 
         else:
             # Configurações IBM
@@ -188,12 +183,10 @@ class Blockchain:
             job = sampler.run([grover_circuit], shots=shots)
             result = job.result()
             counts = result[0].data.c.get_counts()
-            span = result.metadata['execution']['execution_spans'][0]
-            run_time = (span.stop - span.start).total_seconds()
 
         measured_nonce_str = max(counts, key=counts.get)
         measured_nonce = int(measured_nonce_str, 2)
         block.nonce = measured_nonce
         block_hash = block.compute_hash()
         decoded_hash = self.sha.decode(block.compute_hash())
-        return measured_nonce, block_hash, decoded_hash, run_time
+        return measured_nonce, block_hash, decoded_hash

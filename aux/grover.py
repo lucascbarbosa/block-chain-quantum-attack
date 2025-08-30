@@ -1,8 +1,7 @@
 """Grover module."""
 from math import floor, pi, sqrt
 from qiskit import QuantumCircuit
-from qiskit.circuit.library import DiagonalGate
-from sha import SHA
+from .sha import SHA
 
 
 class GroverAlgorithm:

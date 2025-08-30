@@ -1,7 +1,8 @@
 """Main script."""
 import argparse
-from blockchain import Blockchain, Wallet
-from sha import SHA
+from aux.blockchain import Blockchain, Wallet
+from aux.sha import SHA
+from math import floor, pi, sqrt
 
 parser = argparse.ArgumentParser(
     description="Simulação de Blockchain com mineração clássica e quântica."
@@ -77,32 +78,35 @@ tx = alice_wallet.sign_transaction(bob_wallet.address, 10.0)
 blockchain.add_transaction(tx)
 print("Transação adicionada à lista de pendentes.")
 
-print("\n--- 3. TENTANDO MINERAR COM MÉTODO CLÁSSICO ---")
 (
     classical_nonce,
     classical_hash,
     classical_decoded_hash,
-    classical_time
 ) = blockchain.classic_mining()
+print("\n--- 3. TENTANDO MINERAR COM MÉTODO CLÁSSICO ---")
 if classical_nonce is None:
     print("Mineração clássica falhou em encontrar um nonce.")
 else:
     print(
-        f"Nonce {classical_nonce} encontrada em {classical_time} segundos, "
-        f"hash: {classical_hash}, hash decodificado: {classical_decoded_hash}"
+        f"Nonce: {classical_nonce} "
+        f"Iterations: {classical_nonce} "
+        f"Hash (encoded): {classical_hash} "
+        f"Hash (decoded): {classical_decoded_hash}"
     )
 
 print("\n--- 4. TENTANDO MINERAR COM MÉTODO QUÂNTICO ---")
 (
     quantum_nonce,
     quantum_hash,
-    quantum_decoded_hash,
-    quantum_time
+    quantum_decoded_hash
 ) = blockchain.quantum_mining(simulation=args.simulation, shots=args.shots)
+quantum_iterations = floor(pi / 4 * sqrt(2 ** args.nonce_bits))
 if quantum_nonce is None:
     print("Mineração quântica falhou em encontrar um nonce.")
 else:
     print(
-        f"Nonce {quantum_nonce} encontrada em {quantum_time} segundos, "
-        f"hash: {quantum_hash}, hash decodificado: {quantum_decoded_hash}"
+        f"Nonce: {quantum_nonce} "
+        f"Iterations: {quantum_iterations} "
+        f"Hash (encoded): {quantum_hash} "
+        f"Hash (decoded): {quantum_decoded_hash}"
     )
